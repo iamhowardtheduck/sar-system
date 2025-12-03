@@ -128,9 +128,42 @@ class SARApplication {
 
     grid.innerHTML = this.reports.map(report => this.renderReportCard(report)).join('');
 
-    // Add click listeners to report cards
+    // Add click listeners to report cards and buttons
     grid.querySelectorAll('.report-card').forEach((card, index) => {
-      card.addEventListener('click', () => this.showReportDetails(this.reports[index]));
+      // View details on card click (but not on button clicks)
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.report-actions')) {
+          this.showReportDetails(this.reports[index]);
+        }
+      });
+    });
+
+    // Add click listeners specifically for buttons
+    grid.querySelectorAll('.view-details').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const reportId = e.target.dataset.id;
+        const report = this.reports.find(r => r.id === reportId);
+        if (report) {
+          this.showReportDetails(report);
+        }
+      });
+    });
+
+    grid.querySelectorAll('.generate-pdf').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const reportId = e.target.dataset.id;
+        this.generatePDF(reportId, e.target);
+      });
+    });
+
+    grid.querySelectorAll('.generate-8300').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const reportId = e.target.dataset.id;
+        this.generateFinCEN8300(reportId, e.target);
+      });
     });
   }
 
@@ -173,6 +206,17 @@ class SARApplication {
               <div class="field-label">Suspect Address</div>
               <div class="field-value">${this.formatAddress(report, 'suspect')}</div>
             </div>
+          </div>
+          <div class="report-actions">
+            <button class="btn-primary view-details" data-id="${report.id}">
+              📄 View Details
+            </button>
+            <button class="btn-secondary generate-pdf" data-id="${report.id}">
+              📄 Generate PDF
+            </button>
+            <button class="btn-accent generate-8300" data-id="${report.id}">
+              📋 Generate 8300 XML
+            </button>
           </div>
         </div>
       </div>
@@ -336,6 +380,29 @@ class SARApplication {
 
       if (response.ok) {
         this.renderReportModal(fullReport);
+        
+        // Configure the PDF button that's already in the template
+        const pdfButton = document.getElementById('modalPdfBtn');
+        if (pdfButton) {
+          // Show the button and set up click handler
+          pdfButton.style.display = 'inline-flex';
+          pdfButton.onclick = (e) => {
+            e.stopPropagation();
+            this.generatePDF(fullReport.id, pdfButton);
+          };
+        }
+        
+        // Configure the 8300 XML button
+        const xml8300Button = document.getElementById('modal8300Btn');
+        if (xml8300Button) {
+          // Show the button and set up click handler
+          xml8300Button.style.display = 'inline-flex';
+          xml8300Button.onclick = (e) => {
+            e.stopPropagation();
+            this.generateFinCEN8300(fullReport.id, xml8300Button);
+          };
+        }
+        
         document.getElementById('modalOverlay').classList.add('active');
       } else {
         this.showError('Failed to load report details: ' + (fullReport.error || 'Unknown error'));
@@ -443,6 +510,18 @@ class SARApplication {
 
   closeModal() {
     document.getElementById('modalOverlay').classList.remove('active');
+    
+    // Hide the PDF button when modal closes
+    const pdfButton = document.getElementById('modalPdfBtn');
+    if (pdfButton) {
+      pdfButton.style.display = 'none';
+    }
+    
+    // Hide the 8300 XML button when modal closes
+    const xml8300Button = document.getElementById('modal8300Btn');
+    if (xml8300Button) {
+      xml8300Button.style.display = 'none';
+    }
   }
 
   showError(message) {
@@ -455,6 +534,141 @@ class SARApplication {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  async generatePDF(reportId, buttonElement) {
+    try {
+      // Show loading state
+      const originalText = buttonElement.innerHTML;
+      buttonElement.innerHTML = '⏳ Generating...';
+      buttonElement.disabled = true;
+
+      // Make API request to generate PDF
+      const response = await fetch(`/api/sar-reports/${reportId}/pdf`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status} ${response.statusText}`);
+      }
+
+      // Get the PDF blob
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SAR-Report-${reportId}-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Show success message briefly
+      buttonElement.innerHTML = '✅ Downloaded';
+      setTimeout(() => {
+        buttonElement.innerHTML = originalText;
+        buttonElement.disabled = false;
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      
+      // Show error state
+      buttonElement.innerHTML = '❌ Error';
+      setTimeout(() => {
+        buttonElement.innerHTML = '📄 Generate PDF';
+        buttonElement.disabled = false;
+      }, 3000);
+
+      // Show user-friendly error message
+      this.showNotification('Failed to generate PDF. Please try again.', 'error');
+    }
+  }
+
+  showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+      <span>${message}</span>
+      <button onclick="this.parentElement.remove()" style="margin-left: 10px; background: none; border: none; color: inherit; font-size: 18px; cursor: pointer;">&times;</button>
+    `;
+
+    // Style the notification
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'error' ? '#ef4444' : '#10b981'};
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 10000;
+      max-width: 400px;
+      word-wrap: break-word;
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.remove();
+      }
+    }, 5000);
+  async generateFinCEN8300(reportId, buttonElement) {
+    try {
+      // Show loading state
+      const originalText = buttonElement.innerHTML;
+      buttonElement.innerHTML = '⏳ Generating...';
+      buttonElement.disabled = true;
+
+      // Make API request to generate FinCEN 8300 XML
+      const response = await fetch(`/api/sar-reports/${reportId}/fincen8300`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate FinCEN 8300 XML: ${response.status} ${response.statusText}`);
+      }
+
+      // Get the XML content
+      const xmlContent = await response.text();
+      
+      // Create download link for XML
+      const blob = new Blob([xmlContent], { type: 'application/xml' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FinCEN-8300-${reportId}-${new Date().toISOString().split('T')[0]}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Show success message briefly
+      buttonElement.innerHTML = '✅ Downloaded';
+      setTimeout(() => {
+        buttonElement.innerHTML = originalText;
+        buttonElement.disabled = false;
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error generating FinCEN 8300 XML:', error);
+      
+      // Show error state
+      buttonElement.innerHTML = '❌ Error';
+      setTimeout(() => {
+        buttonElement.innerHTML = '📋 Generate 8300 XML';
+        buttonElement.disabled = false;
+      }, 3000);
+
+      // Show user-friendly error message
+      this.showNotification('Failed to generate FinCEN 8300 XML. Please try again.', 'error');
+    }
   }
 }
 
