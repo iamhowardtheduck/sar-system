@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAR Management System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="brand">
+                    <h1 class="brand-title">SAR Management System</h1>
+                    <p class="brand-subtitle">Suspicious Activity Report Dashboard</p>
+                </div>
+                <div class="header-actions">
+                    <button id="healthCheck" class="btn-secondary">System Health</button>
+                    <div class="status-indicator" id="statusIndicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Checking...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Search and Filter Section -->
+            <section class="search-section">
+                <div class="search-container">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search by institution name, suspect, account number...">
+                        <button id="searchBtn" class="btn-primary">Search</button>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="pageSize">
+                            <option value="10">10 per page</option>
+                            <option value="25">25 per page</option>
+                            <option value="50">50 per page</option>
+                        </select>
+                        <button id="clearSearch" class="btn-ghost">Clear</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports List Section -->
+            <section class="reports-section">
+                <div class="section-header">
+                    <h2>Suspicious Activity Reports</h2>
+                    <div class="results-info" id="resultsInfo">Loading...</div>
+                </div>
+
+                <div class="reports-grid" id="reportsGrid">
+                    <!-- Reports will be dynamically loaded here -->
+                </div>
+
+                <div class="pagination" id="pagination">
+                    <!-- Pagination will be dynamically generated -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Report Detail Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>SAR Details</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Report details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner"></div>
+        <p>Loading reports...</p>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
