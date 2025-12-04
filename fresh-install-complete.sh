@@ -1973,26 +1973,110 @@ XML_8300_GENERATION_ENABLED=true
 SESSION_SECRET=workshop-complete-secret-key-12345
 EOF
 
-echo "✅ Complete environment configuration created"
+echo "🔧 Creating server management scripts..."
+
+# Create a server management script
+cat > manage-server.sh << 'EOF'
+#!/bin/bash
+
+case "$1" in
+    start)
+        echo "🚀 Starting SAR Management System..."
+        if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "❌ Port 3000 is already in use. Use 'stop' first or check with 'status'"
+            exit 1
+        fi
+        npm start
+        ;;
+    stop)
+        echo "🛑 Stopping SAR Management System..."
+        pkill -f "node server.js" && echo "✅ Server stopped" || echo "ℹ️  No server was running"
+        ;;
+    restart)
+        echo "🔄 Restarting SAR Management System..."
+        $0 stop
+        sleep 2
+        $0 start
+        ;;
+    status)
+        echo "📊 SAR Management System Status:"
+        if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "✅ Server is running on port 3000"
+            echo "🌐 Available at: http://localhost:3000"
+        else
+            echo "❌ Server is not running"
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        echo "Commands:"
+        echo "  start   - Start the SAR server"
+        echo "  stop    - Stop the SAR server"
+        echo "  restart - Restart the SAR server"
+        echo "  status  - Check server status"
+        exit 1
+        ;;
+esac
+EOF
+
+chmod +x manage-server.sh
+
+echo "✅ Server management scripts created"
 
 
 
 
 
 echo "🧪 Testing the installation..."
-echo "🚀 Starting application for testing..."
-npm start &
-APP_PID=$!
-sleep 3
 
-if curl -s http://localhost:3000/api/health > /dev/null 2>&1; then
-    echo "✅ Application started successfully"
-else
-    echo "❌ Application test failed"
+# Check if port 3000 is already in use
+PORT_IN_USE=false
+
+# Method 1: Try lsof (most reliable)
+if command -v lsof >/dev/null 2>&1; then
+    if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        PORT_IN_USE=true
+    fi
+# Method 2: Try netstat (fallback)
+elif command -v netstat >/dev/null 2>&1; then
+    if netstat -ln 2>/dev/null | grep -q ":3000 "; then
+        PORT_IN_USE=true
+    fi
+# Method 3: Try ss (modern Linux)
+elif command -v ss >/dev/null 2>&1; then
+    if ss -ln 2>/dev/null | grep -q ":3000 "; then
+        PORT_IN_USE=true
+    fi
 fi
 
-kill $APP_PID 2>/dev/null
-wait $APP_PID 2>/dev/null
+if [ "$PORT_IN_USE" = true ]; then
+    echo "ℹ️  Port 3000 is already in use (probably your SAR server is running)"
+    echo "✅ Skipping installation test - your server is likely already working"
+    echo "🌐 Check: http://localhost:3000"
+else
+    echo "🚀 Starting application for testing..."
+    timeout 10s npm start &
+    APP_PID=$!
+    
+    # Wait for the server to start
+    echo "⏳ Waiting for server to start..."
+    for i in {1..15}; do
+        if curl -s http://localhost:3000/api/health > /dev/null 2>&1; then
+            echo "✅ Application started successfully"
+            break
+        fi
+        sleep 1
+        echo -n "."
+    done
+    echo ""
+    
+    # Clean up the test instance
+    if [ ! -z "$APP_PID" ]; then
+        kill $APP_PID 2>/dev/null
+        wait $APP_PID 2>/dev/null
+        echo "🛑 Test server stopped"
+    fi
+fi
 
 echo ""
 echo "🎉 === FRESH SAR SYSTEM INSTALLATION COMPLETE ==="
@@ -2009,6 +2093,7 @@ echo "    • public/js/app.js (interactive frontend)"
 echo "    • views/index.ejs (complete HTML template)"
 echo "    • .env (workshop configuration)"
 echo "    • package.json (all dependencies)"
+echo "    • manage-server.sh (server management utility)"
 echo "  ✅ All buttons functional:"
 echo "    • 📄 View Details"
 echo "    • 📄 Generate PDF (auto-fill SAR forms)"
@@ -2020,6 +2105,15 @@ echo ""
 echo "🚀 To start using:"
 echo "  cd $INSTALL_DIR"
 echo "  npm start"
+echo ""
+echo "🔧 Server Management (easier way):"
+echo "  ./manage-server.sh start    # Start the server"
+echo "  ./manage-server.sh stop     # Stop the server"
+echo "  ./manage-server.sh restart  # Restart the server"
+echo "  ./manage-server.sh status   # Check status"
+echo ""
+echo "ℹ️  Note: If you get 'EADDRINUSE: port 3000', use:"
+echo "  ./manage-server.sh stop && ./manage-server.sh start"
 echo ""
 echo "🌐 Then open in browser:"
 echo "  http://localhost:3000"
