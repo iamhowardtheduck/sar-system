@@ -105,7 +105,9 @@ if [ ! -f "package.json" ]; then
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "pdf-lib": "^1.17.1",
+    "xmlbuilder2": "^3.1.1"
   }
 }
 EOF
@@ -113,6 +115,9 @@ fi
 
 # Install Node.js dependencies
 echo "Installing Node.js dependencies..."
+echo "  - PDF generation: pdf-lib"
+echo "  - FinCEN 8300 XML: xmlbuilder2"
+echo "  - Web framework and Elasticsearch connectivity"
 npm install
 
 # Create .env file with workshop configuration
@@ -137,6 +142,12 @@ chmod +x *.sh 2>/dev/null || true
 
 echo "=== Installation Complete ==="
 echo "Application directory: $APP_DIR"
+echo ""
+echo "✨ Features Available:"
+echo "  📄 SAR PDF Generation (auto-fills official forms)"
+echo "  📋 FinCEN 8300 XML Generation (BSA compliance)"
+echo "  🔍 Elasticsearch SAR Data Management"
+echo "  📊 Web-based SAR Report Dashboard"
 echo ""
 echo "Workshop Configuration Applied:"
 echo "  Elasticsearch URL: http://kubernetes-vm:30920"
@@ -175,6 +186,10 @@ echo "   http://localhost:3000"
 echo ""
 echo "4. (Optional) Load sample data:"
 echo "   ./load-sample-data.sh"
+echo ""
+echo "5. Test new features:"
+echo "   • Click '📄 Generate PDF' to auto-fill SAR forms"
+echo "   • Click '📋 Generate 8300 XML' for FinCEN cash transaction reporting"
 echo ""
 
 # Test Elasticsearch connectivity
